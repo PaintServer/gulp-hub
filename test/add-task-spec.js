@@ -4,8 +4,7 @@ var sinon   = require( 'sinon' );
 var pequire = require( 'proxyquire' ).noCallThru();
 
 var HAPPY_PROXY_DEPS = {
-    gulp: { task: _.noop },
-    'run-sequence': _.noop
+    gulp: { task: _.noop, hasTask: _.noop }
 };
 
 var getAddTask = function ( proxyDeps ) {
@@ -16,7 +15,7 @@ describe( 'add-task', function () {
 
     it( 'adds each tasks\'s subtasks and their parameters to gulp', function () {
         var taskSpy = sinon.spy();
-        var addTask = getAddTask( { gulp: { task: taskSpy } } );
+        var addTask = getAddTask( { gulp: { task: taskSpy, hasTask: _.noop } } );
         addTask( {
             name: 'task-name',
             subtasks: [
@@ -31,12 +30,19 @@ describe( 'add-task', function () {
     it( 'creates a master task to run all subtasks in sequence', function () {
         var runSeqSpy = sinon.spy();
         var taskSpy = sinon.spy( function ( name, callback ) {
-            callback();
+            if (typeof callback == 'function') {
+                callback();
+            } else {
+                callback.forEach(function(task) {
+                    taskSpy(task, _.noop);
+                });
+            }
         } );
 
         var addTask = getAddTask( {
             gulp: {
-                task: taskSpy
+                task: taskSpy,
+                hasTask: _.noop
             },
             'run-sequence': runSeqSpy
         } );
